@@ -6,6 +6,8 @@ import javafx.scene.*;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.*;
+import javafx.util.*;
+
 import java.io.*;
 import java.util.*;
 import static javafx.collections.FXCollections.*;
@@ -283,7 +285,7 @@ class InventoryPane extends VBox
             lastCheckedDatePicker.setDisable(!editable);
         }
 
-        if(!isNew)
+        if(a.ownerProperty().getValue() != null)
         {
             assetNameField.setText(a.getName());
             ownerField.setText(a.getOwner().getFullName());
@@ -404,24 +406,43 @@ class InventoryPane extends VBox
             {
                 if(finalIsNew)
                 {
+                    final Asset newAsset = new Asset();
                     Bits.TOTAL_ASSETS_WRITTEN.setValue(Bits.TOTAL_ASSETS_WRITTEN.getValue() + 1);
-                    a.setKey(Bits.TOTAL_ASSETS_WRITTEN.getValue());
+                    newAsset.setKey(Bits.TOTAL_ASSETS_WRITTEN.getValue());
+                    newAsset.setName(assetNameField.getText());
+                    newAsset.setAssetTag(assetTagField.getText());
+                    newAsset.setOwner(a.getOwner());
+                    newAsset.setLocation(locationField.getText());
+                    newAsset.setType(typeField.getText());
+                    newAsset.setManufacturer(manufacturerField.getText());
+                    newAsset.setModel(modelField.getText());
+                    newAsset.setSerial(serialField.getText());
+                    newAsset.setPropertyManager(a.getPropertyManager());
+                    newAsset.setPrice(Double.parseDouble(priceField.getText()));
+                    newAsset.setPurchaseDate(purchaseDatePicker.getValue());
+                    newAsset.setPurchaser(a.getPurchaser());
+                    newAsset.setWarrantyExpiryDate(warrantyExpiryDatePicker.getValue());
+                    newAsset.setLastCheckedDate(lastCheckedDatePicker.getValue());
+
+                    newAsset.setEntities();
+
+                    Asset.getMap().put(newAsset, newAsset.getOwner());
+                } else {
+                    a.setName(assetNameField.getText());
+                    a.setAssetTag(assetTagField.getText());
+                    a.setLocation(locationField.getText());
+                    a.setType(typeField.getText());
+                    a.setManufacturer(manufacturerField.getText());
+                    a.setModel(modelField.getText());
+                    a.setSerial(serialField.getText());
+                    a.setPrice(Double.parseDouble(priceField.getText()));
+                    a.setPurchaseDate(purchaseDatePicker.getValue());
+                    a.setWarrantyExpiryDate(warrantyExpiryDatePicker.getValue());
+                    a.setLastCheckedDate(lastCheckedDatePicker.getValue());
+                    a.setEntities();
+
+                    Asset.getMap().put(a, a.getOwner());
                 }
-                a.setName(assetNameField.getText());
-                a.setAssetTag(assetTagField.getText());
-                a.setLocation(locationField.getText());
-                a.setType(typeField.getText());
-                a.setManufacturer(manufacturerField.getText());
-                a.setModel(modelField.getText());
-                a.setSerial(serialField.getText());
-                a.setPrice(Double.parseDouble(priceField.getText()));
-                a.setPurchaseDate(purchaseDatePicker.getValue());
-                a.setWarrantyExpiryDate(warrantyExpiryDatePicker.getValue());
-                a.setLastCheckedDate(lastCheckedDatePicker.getValue());
-
-                a.setEntities();
-
-                Asset.getMap().put(a, a.getOwner());
 
                 Tree.setTrees();
                 Encryption.saveJDF();
@@ -1033,8 +1054,54 @@ class InventoryPane extends VBox
         Button exportButton = new Button("Export CSV"); // Export assets; asks if current view or all assets
         Button refreshButton = new Button("Refresh Table"); // Refresh button; refreshes table view to all Assets in the map
 
+        // Button accelerators
+        //viewAssetButton.setAccelerator
+
         // Table
         TableView<Asset> assetTable = new TableView<>();
+
+        // Tableview context menus
+        assetTable.setRowFactory(assetTable1 -> {
+            final TableRow<Asset> row = new TableRow<>();
+            final ContextMenu rowMenu = new ContextMenu();
+
+            Menu newAssetMenu = new Menu("New");
+
+            MenuItem newAsset = new MenuItem("Empty Asset");
+            MenuItem newAssetFromExisting = new MenuItem("From Existing Asset");
+            MenuItem editAsset = new MenuItem("Edit");
+            MenuItem viewAsset = new MenuItem("View");
+            MenuItem removeAsset = new MenuItem("Delete");
+
+            newAsset.setOnAction(ae -> {
+                assetDialogButtonAction(ae, new Asset(), NEW);
+                assetTable.setItems(Asset.getMap().getAllAssets());
+            });
+            newAssetFromExisting.setOnAction(ae -> {
+                assetDialogButtonAction(ae, row.getItem(), NEW);
+                assetTable.setItems(Asset.getMap().getAllAssets());
+            });
+            editAsset.setOnAction(ae -> {
+                assetDialogButtonAction(ae, row.getItem(), EDIT);
+                assetTable.setItems(Asset.getMap().getAllAssets());
+            });
+            viewAsset.setOnAction(ae -> assetDialogButtonAction(ae, row.getItem(), VIEW));
+            removeAsset.setOnAction(ae -> {
+                deleteAssetButtonAction(ae, row.getItem());
+                assetTable.setItems(Asset.getMap().getAllAssets());
+            });
+
+            newAssetMenu.getItems().addAll(newAsset,newAssetFromExisting);
+
+            rowMenu.getItems().addAll(newAssetMenu,editAsset,viewAsset,removeAsset);
+
+            // only display context menu for non-null items:
+            row.contextMenuProperty().bind(
+                    Bindings.when(Bindings.isNotNull(row.itemProperty()))
+                            .then(rowMenu)
+                            .otherwise((ContextMenu) null));
+            return row;
+        });
 
         // Add actions to buttons
         newAssetMenuItem.setOnAction(a ->
